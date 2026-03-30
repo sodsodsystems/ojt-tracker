@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OJT Hours Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1f2937;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #f78166;
+    --warn: #e3b341;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --radius: 12px;
+    --total: 480;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    position: relative;
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* Canvas particle background (from index demo) */
+  #bgCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    display: block;
+  }
+
+  .chip {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 3;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 8px 12px;
+    backdrop-filter: blur(12px);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text);
+    user-select: none;
+  }
+  .chip input { accent-color: var(--accent); }
+
+  /* ── HEADER ── */
+  header {
+    max-width: 900px;
+    margin: 0 auto 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 2;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), #1d6fbd);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 20px;
+  }
+  .brand-text h1 {
+    font-size: 1.3rem; font-weight: 700; letter-spacing: -0.5px;
+  }
+  .brand-text p { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+  .export-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: #21612b;
+    color: #3fb950;
+    border: 1px solid #2ea043;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.84rem; font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .export-btn:hover { background: #2ea043; color: #fff; }
+
+  /* ── PROGRESS SECTION ── */
+  .progress-section {
+    max-width: 900px;
+    margin: 0 auto 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    position: relative;
+    z-index: 2;
+  }
+  .progress-top {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 14px; flex-wrap: wrap; gap: 8px;
+  }
+  .progress-label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .progress-nums { font-family: 'Space Mono', monospace; }
+  .progress-nums .done { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .progress-nums .total { font-size: 1rem; color: var(--muted); }
+  .progress-pct { font-family: 'Space Mono', monospace; font-size: 0.95rem; color: var(--accent2); font-weight: 700; }
+
+  .progress-bar-wrap {
+    background: var(--surface2);
+    border-radius: 99px;
+    height: 12px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+    min-width: 4px;
+  }
+
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 12px;
+  }
+  .stat-box {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+  }
+  .stat-box .stat-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.15rem; font-weight: 700;
+    color: var(--text);
+  }
+  .stat-box .stat-lbl { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+
+  /* ── FORM CARD ── */
+  .form-card {
+    max-width: 900px;
+    margin: 0 auto 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    position: relative;
+    z-index: 2;
+  }
+  .form-card h2 {
+    font-size: 1rem; font-weight: 600; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .form-card h2 span { color: var(--accent); }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  @media(max-width:680px){ .form-grid { grid-template-columns: 1fr 1fr; } }
+  @media(max-width:420px){ .form-grid { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 0.75rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; }
+  .field input, .field textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .2s;
+    width: 100%;
+  }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .field input[type="time"] { cursor: pointer; }
+
+  .computed-hours {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--accent2);
+    font-weight: 700;
+    min-height: 40px;
+  }
+
+  .add-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, #1d6fbd, var(--accent));
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 24px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.88rem; font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s;
+  }
+  .add-btn:hover { opacity: .88; }
+  .add-btn:active { transform: scale(.97); }
+
+  /* ── LOG TABLE ── */
+  .log-section {
+    max-width: 900px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+  }
+  .log-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .log-header h2 { font-size: 1rem; font-weight: 600; }
+  .log-count {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 3px 12px;
+    font-size: 0.75rem; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 0.83rem;
+  }
+  thead th {
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(88,166,255,.06); }
+  tbody td {
+    padding: 12px 14px;
+    vertical-align: top;
+  }
+  .td-date { font-family: 'Space Mono', monospace; font-size: 0.8rem; white-space: nowrap; }
+  .td-time { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+  .td-hours {
+    font-family: 'Space Mono', monospace; font-weight: 700;
+    color: var(--accent2); font-size: 0.88rem; white-space: nowrap;
+  }
+  .td-tasks { color: var(--text); line-height: 1.5; max-width: 320px; }
+  .delete-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--muted);
+    border-radius: 6px;
+    width: 28px; height: 28px;
+    cursor: pointer;
+    display: grid; place-items: center;
+    font-size: 14px;
+    transition: all .2s;
+  }
+  .delete-btn:hover { border-color: var(--accent3); color: var(--accent3); background: rgba(247,129,102,.1); }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+  }
+  .empty-state .big-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .empty-state p { font-size: 0.88rem; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px);
+    background: #238636; color: #fff;
+    border-radius: 8px; padding: 10px 20px;
+    font-size: 0.84rem; font-weight: 600;
+    opacity: 0; transition: all .3s;
+    pointer-events: none; white-space: nowrap;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .badge-complete {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(63,185,80,.15);
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    border-radius: 99px;
+    padding: 3px 12px;
+    font-size: 0.75rem; font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<label class="chip">
+  <input type="checkbox" id="interactionToggle" checked>
+  Interaction
+</label>
+
+<!-- HEADER -->
+<header>
+  <div class="brand">
+    <div class="brand-icon">📋</div>
+    <div class="brand-text">
+      <h1>OJT Hours Tracker</h1>
+      <p>480-hour requirement monitor</p>
+    </div>
+  </div>
+  <button class="export-btn" onclick="exportToExcel()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Export to Excel
+  </button>
+</header>
+
+<!-- PROGRESS -->
+<div class="progress-section">
+  <div class="progress-top">
+    <div>
+      <div class="progress-label">Overall Progress</div>
+      <div class="progress-nums">
+        <span class="done" id="doneHours">0.00</span>
+        <span class="total"> / 480 hrs</span>
+      </div>
+    </div>
+    <div id="pctBadge" class="progress-pct">0.00%</div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-val" id="statDays">0</div>
+      <div class="stat-lbl">Days Logged</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" id="statRemain">480.00</div>
+      <div class="stat-lbl">Hours Remaining</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" id="statAvg">—</div>
+      <div class="stat-lbl">Avg Hrs / Day</div>
+    </div>
+  </div>
+</div>
+
+<!-- ENTRY FORM -->
+<div class="form-card">
+  <h2>✏️ <span>Log Today's Hours</span></h2>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="entryDate"/>
+    </div>
+    <div class="field">
+      <label>Attendance Status</label>
+      <select id="statusField" onchange="onStatusChange()" style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Sora',sans-serif; font-size:0.88rem; padding:10px 12px; outline:none; cursor:pointer; transition:border-color .2s;">
+        <option value="present">✅ Present</option>
+        <option value="halfday-am">🌤 Half Day (Morning only)</option>
+        <option value="halfday-pm">🌇 Half Day (Afternoon only)</option>
+        <option value="absent">❌ Absent</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="timeFields">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+      <div id="morBlock" style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;">
+        <div style="font-size:0.72rem; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">🌤 Morning</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="field">
+            <label>Time In</label>
+            <input type="time" id="morIn" oninput="computeHours()"/>
+          </div>
+          <div class="field">
+            <label>Time Out</label>
+            <input type="time" id="morOut" oninput="computeHours()"/>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;" id="aftBlock">
+        <div style="font-size:0.72rem; color:var(--warn); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">🌇 Afternoon</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="field">
+            <label>Time In</label>
+            <input type="time" id="aftIn" oninput="computeHours()"/>
+          </div>
+          <div class="field">
+            <label>Time Out</label>
+            <input type="time" id="aftOut" oninput="computeHours()"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+      <div style="font-size:0.75rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Total Hours:</div>
+      <div class="computed-hours" id="computedHours">— hrs</div>
+    </div>
+  </div>
+
+  <div id="absentNote" style="display:none; background:rgba(247,129,102,0.1); border:1px solid var(--accent3); border-radius:10px; padding:14px 16px; margin-bottom:14px; color:var(--accent3); font-size:0.88rem;">
+    ❌ This day will be marked as <strong>Absent</strong> — no hours will be counted.
+  </div>
+
+  <button class="add-btn" onclick="addEntry()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Add Entry
+  </button>
+</div>
+
+<!-- LOG TABLE -->
+<div class="log-section">
+  <div class="log-header">
+    <h2>📅 Daily Log</h2>
+    <span class="log-count" id="logCount">0 entries</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Mor. In</th>
+          <th>Mor. Out</th>
+          <th>Aft. In</th>
+          <th>Aft. Out</th>
+          <th>Hours</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState">
+      <div class="big-icon">🗂️</div>
+      <p>No entries yet — log your first OJT day above!</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORE_KEY = 'ojt_tracker_entries';
+const TOTAL_HOURS = 480;
+
+let entries = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
+
+// Set default date to today
+document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+
+function saveEntries() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(entries));
+}
+
+function computeHours() {
+  const morIn  = document.getElementById('morIn').value;
+  const morOut = document.getElementById('morOut').value;
+  const aftIn  = document.getElementById('aftIn').value;
+  const aftOut = document.getElementById('aftOut').value;
+  const el     = document.getElementById('computedHours');
+
+  let total = 0;
+  if (morIn && morOut) {
+    const diff = (toMins(morOut) - toMins(morIn)) / 60;
+    if (diff <= 0) { el.textContent = '⚠ Invalid Morning'; el.style.color = 'var(--accent3)'; return null; }
+    total += diff;
+  }
+  if (aftIn && aftOut) {
+    const diff = (toMins(aftOut) - toMins(aftIn)) / 60;
+    if (diff <= 0) { el.textContent = '⚠ Invalid Afternoon'; el.style.color = 'var(--accent3)'; return null; }
+    total += diff;
+  }
+  if (total === 0) { el.textContent = '— hrs'; el.style.color = 'var(--muted)'; return null; }
+  el.textContent = total.toFixed(2) + ' hrs';
+  el.style.color = 'var(--accent2)';
+  return total;
+}
+
+function onStatusChange() {
+  const status     = document.getElementById('statusField').value;
+  const timeFields = document.getElementById('timeFields');
+  const absentNote = document.getElementById('absentNote');
+  const morBlock   = document.getElementById('morBlock');
+  const aftBlock   = document.getElementById('aftBlock');
+
+  if (status === 'absent') {
+    timeFields.style.display = 'none';
+    absentNote.style.display = 'block';
+    return;
+  }
+
+  timeFields.style.display = 'block';
+  absentNote.style.display = 'none';
+
+  if (status === 'halfday-am') {
+    morBlock.style.display = 'block';
+    aftBlock.style.display = 'none';
+    document.getElementById('aftIn').value  = '';
+    document.getElementById('aftOut').value = '';
+  } else if (status === 'halfday-pm') {
+    morBlock.style.display = 'none';
+    aftBlock.style.display = 'block';
+    document.getElementById('morIn').value  = '';
+    document.getElementById('morOut').value = '';
+  } else {
+    morBlock.style.display = 'block';
+    aftBlock.style.display = 'block';
+  }
+  computeHours();
+}
+
+function toMins(t) {
+  const [h,m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function fmt12(t) {
+  if (!t) return '—';
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hh = h % 12 || 12;
+  return `${hh}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[+m-1]} ${+day}, ${y}`;
+}
+
+function addEntry() {
+  const date   = document.getElementById('entryDate').value;
+  const status = document.getElementById('statusField').value;
+  const morIn  = document.getElementById('morIn').value;
+  const morOut = document.getElementById('morOut').value;
+  const aftIn  = document.getElementById('aftIn').value;
+  const aftOut = document.getElementById('aftOut').value;
+
+  if (!date) return showToast('Please enter a date.', 'error');
+
+  let hrs = 0;
+  if (status !== 'absent') {
+    if (status === 'halfday-am' || status === 'present') {
+      if ((morIn && !morOut) || (!morIn && morOut)) return showToast('Morning needs both In and Out.', 'error');
+    }
+    if (status === 'halfday-pm' || status === 'present') {
+      if ((aftIn && !aftOut) || (!aftIn && aftOut)) return showToast('Afternoon needs both In and Out.', 'error');
+    }
+    if (status === 'halfday-am' && (!morIn || !morOut)) return showToast('Please enter Morning In and Out.', 'error');
+    if (status === 'halfday-pm' && (!aftIn || !aftOut)) return showToast('Please enter Afternoon In and Out.', 'error');
+    if (status === 'present' && !morIn && !morOut && !aftIn && !aftOut) return showToast('Please enter at least one time session.', 'error');
+    hrs = computeHours();
+    if (!hrs) return showToast('Check your time entries.', 'error');
+  }
+
+  entries.push({ id: Date.now(), date, status, morIn, morOut, aftIn, aftOut, hours: hrs });
+  entries.sort((a,b) => a.date.localeCompare(b.date));
+  saveEntries();
+  renderAll();
+
+  document.getElementById('morIn').value  = '';
+  document.getElementById('morOut').value = '';
+  document.getElementById('aftIn').value  = '';
+  document.getElementById('aftOut').value = '';
+  document.getElementById('computedHours').textContent = '— hrs';
+  document.getElementById('computedHours').style.color = 'var(--muted)';
+  document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('statusField').value = 'present';
+  onStatusChange();
+
+  showToast('✓ Entry added successfully!');
+}
+
+function deleteEntry(id) {
+  entries = entries.filter(e => e.id !== id);
+  saveEntries();
+  renderAll();
+  showToast('Entry removed.');
+}
+
+function renderAll() {
+  renderTable();
+  renderProgress();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('logBody');
+  const empty = document.getElementById('emptyState');
+  document.getElementById('logCount').textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`;
+
+  if (entries.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const statusLabel = { present: '<span style="color:var(--accent2);font-weight:600;">✅ Present</span>', 'halfday-am': '<span style="color:var(--warn);font-weight:600;">🌤 Half Day AM</span>', 'halfday-pm': '<span style="color:var(--warn);font-weight:600;">🌇 Half Day PM</span>', absent: '<span style="color:var(--accent3);font-weight:600;">❌ Absent</span>' };
+  tbody.innerHTML = entries.map((e,i) => `
+    <tr>
+      <td class="td-time">${i+1}</td>
+      <td class="td-date">${fmtDate(e.date)}</td>
+      <td class="td-time">${statusLabel[e.status || 'present']}</td>
+      <td class="td-time">${(e.status === 'absent' || e.status === 'halfday-pm') ? '—' : fmt12(e.morIn)}</td>
+      <td class="td-time">${(e.status === 'absent' || e.status === 'halfday-pm') ? '—' : fmt12(e.morOut)}</td>
+      <td class="td-time">${(e.status === 'absent' || e.status === 'halfday-am') ? '—' : fmt12(e.aftIn)}</td>
+      <td class="td-time">${(e.status === 'absent' || e.status === 'halfday-am') ? '—' : fmt12(e.aftOut)}</td>
+      <td class="td-hours">${e.status === 'absent' ? '<span style="color:var(--accent3)">0.00</span>' : (+e.hours).toFixed(2)}</td>
+      <td><button class="delete-btn" onclick="deleteEntry(${e.id})" title="Delete">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderProgress() {
+  const done = entries.reduce((s,e) => s + (+e.hours), 0);
+  const pct  = Math.min((done / TOTAL_HOURS) * 100, 100);
+  const rem  = Math.max(TOTAL_HOURS - done, 0);
+  const avg  = entries.length ? (done / entries.length).toFixed(2) : '—';
+
+  document.getElementById('doneHours').textContent   = done.toFixed(2);
+  document.getElementById('pctBadge').textContent    = pct.toFixed(2) + '%';
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('statDays').textContent    = entries.length;
+  document.getElementById('statRemain').textContent  = rem.toFixed(2);
+  document.getElementById('statAvg').textContent     = avg === '—' ? '—' : avg + ' hrs';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'error' ? '#b91c1c' : '#238636';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── EXPORT TO EXCEL (DTR FORMAT) ─────────────────────────────────────────────
+function exportToExcel() {
+  if (entries.length === 0) return showToast('No entries to export yet.', 'error');
+
+  const wb = XLSX.utils.book_new();
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  const statusText = { present: 'Present', 'halfday-am': 'Half Day (AM)', 'halfday-pm': 'Half Day (PM)', absent: 'Absent' };
+
+  // ── DTR Sheet ─────────────────────────────────────────────────────────────
+  // Build as array-of-arrays for clean, reliable output
+  const dtrRows = [];
+
+  // Row 1: headers
+  dtrRows.push(['Day', 'Morning', '', 'Afternoon', '', 'Total Hrs', '', 'Overall Hours', 'Completion %']);
+  // Row 2: sub-headers
+  dtrRows.push(['', 'IN', 'OUT', 'IN', 'OUT', '', '', '', '']);
+
+  const totalDays = 60;
+  let totalRenderedHrs = 0;
+
+  for (let i = 0; i < totalDays; i++) {
+    const e = sorted[i];
+    if (e) {
+      const morIn  = e.morIn  || '';
+      const morOut = e.morOut || '';
+      const aftIn  = e.aftIn  || '';
+      const aftOut = e.aftOut || '';
+      const hrs    = +e.hours || 0;
+      totalRenderedHrs += hrs;
+
+      // Compute total hrs text for this row: "X hrs Y mins" or decimal
+      const hh = Math.floor(hrs);
+      const mm = Math.round((hrs - hh) * 60);
+      const hrsText = hrs === 0 ? (e.status === 'absent' ? 'ABSENT' : '') :
+                      (mm > 0 ? `${hh}h ${mm}m` : `${hh}h`);
+
+      const row = [
+        i + 1,
+        morIn  ? fmt12(morIn)  : '',
+        morOut ? fmt12(morOut) : '',
+        aftIn  ? fmt12(aftIn)  : '',
+        aftOut ? fmt12(aftOut) : '',
+        hrsText,
+        '',
+        i === 0 ? '' : '',  // overall hours only in summary
+        i === 0 ? '' : '',
+      ];
+      dtrRows.push(row);
+    } else {
+      dtrRows.push([i + 1, '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  const wsDTR = XLSX.utils.aoa_to_sheet(dtrRows);
+
+  // Inject Overall Hours and Completion % as computed values in row 3 (index 2)
+  const totalHH = Math.floor(totalRenderedHrs);
+  const totalMM = Math.round((totalRenderedHrs - totalHH) * 60);
+  const totalText = totalMM > 0 ? `${totalHH}h ${totalMM}m` : `${totalHH}h`;
+  const pct = Math.min((totalRenderedHrs / 480) * 100, 100).toFixed(2);
+  // Overwrite H3 and I3
+  XLSX.utils.sheet_add_aoa(wsDTR, [[totalText, pct + '%']], { origin: 'H3' });
+
+  // Merges for Morning / Afternoon header
+  wsDTR['!merges'] = [
+    { s: { r: 0, c: 1 }, e: { r: 0, c: 2 } },
+    { s: { r: 0, c: 3 }, e: { r: 0, c: 4 } },
+  ];
+  wsDTR['!cols'] = [
+    { wch: 5  },  // Day
+    { wch: 11 },  // Mor In
+    { wch: 11 },  // Mor Out
+    { wch: 11 },  // Aft In
+    { wch: 11 },  // Aft Out
+    { wch: 9  },  // Total
+    { wch: 2  },  // spacer
+    { wch: 14 },  // Overall
+    { wch: 14 },  // Completion
+  ];
+
+  XLSX.utils.book_append_sheet(wb, wsDTR, 'DTR');
+
+  // ── Attendance Sheet ───────────────────────────────────────────────────────
+  const attRows = [['Day', 'Date', 'Status', 'Mor In', 'Mor Out', 'Aft In', 'Aft Out', 'Hours']];
+  sorted.forEach((e, i) => {
+    attRows.push([
+      i + 1,
+      fmtDate(e.date),
+      statusText[e.status || 'present'],
+      e.morIn  ? fmt12(e.morIn)  : '',
+      e.morOut ? fmt12(e.morOut) : '',
+      e.aftIn  ? fmt12(e.aftIn)  : '',
+      e.aftOut ? fmt12(e.aftOut) : '',
+      +(+e.hours).toFixed(2),
+    ]);
+  });
+
+  // Summary rows at bottom
+  attRows.push([]);
+  attRows.push(['', '', '', '', '', '', 'Total Rendered:', +totalRenderedHrs.toFixed(2)]);
+  attRows.push(['', '', '', '', '', '', 'Required Hours:', 480]);
+  attRows.push(['', '', '', '', '', '', 'Remaining:', +Math.max(480 - totalRenderedHrs, 0).toFixed(2)]);
+  attRows.push(['', '', '', '', '', '', 'Completion:', pct + '%']);
+
+  const wsAtt = XLSX.utils.aoa_to_sheet(attRows);
+  wsAtt['!cols'] = [
+    { wch: 5 }, { wch: 18 }, { wch: 16 },
+    { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 },
+    { wch: 10 },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, wsAtt, 'Attendance');
+
+  const today = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `OJT_DTR_${today}.xlsx`);
+  showToast('✓ DTR exported successfully!');
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+renderAll();
+
+// ───────────────── PARTICLE BACKGROUND (migrated from index demo) ──────────────
+(() => {
+  const canvas = document.getElementById('bgCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const toggle = document.getElementById('interactionToggle');
+
+  let w, h, dpr;
+  let particles = [];
+  let mouse = { x: 0, y: 0, active: false };
+  let lastTime = 0;
+
+  const baseDensity = 0.18; // particles per 1000 px²
+  const maxParticles = 260;
+  const minParticles = 120;
+  const linkDist = 120;
+  const influenceRadius = 140;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    initParticles();
+  }
+
+  function rand(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+
+  function initParticles() {
+    const targetCount = Math.min(
+      maxParticles,
+      Math.max(minParticles, Math.floor((w * h / 1000) * baseDensity))
+    );
+    particles = new Array(targetCount).fill(0).map(() => ({
+      x: rand(0, w),
+      y: rand(0, h),
+      vx: rand(-0.05, 0.05),
+      vy: rand(-0.05, 0.05),
+      size: rand(1.2, 2.8),
+      alpha: rand(0.25, 0.7),
+      hue: [200, 130, 330][Math.floor(Math.random() * 3)],
+      parallax: rand(0.2, 0.7)
+    }));
+  }
+
+  function drawParticle(p) {
+    ctx.beginPath();
+    ctx.fillStyle = `hsla(${p.hue}, 75%, 70%, ${p.alpha})`;
+    ctx.shadowColor = `hsla(${p.hue}, 75%, 65%, ${p.alpha})`;
+    ctx.shadowBlur = 14;
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawLink(a, b, dist) {
+    const opacity = 0.12 * (1 - dist / linkDist);
+    ctx.strokeStyle = `rgba(230, 237, 243, ${opacity})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+
+  function update(dt) {
+    const driftStrength = 0.015;
+    const mouseOn = toggle?.checked && mouse.active;
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+
+      // gentle random drift
+      p.vx += rand(-driftStrength, driftStrength);
+      p.vy += rand(-driftStrength, driftStrength);
+
+      // parallax pull toward mouse for depth
+      if (mouseOn) {
+        const dx = (mouse.x - w / 2) * 0.0003 * p.parallax;
+        const dy = (mouse.y - h / 2) * 0.0003 * p.parallax;
+        p.vx += dx;
+        p.vy += dy;
+      }
+
+      // cap velocity for stability
+      const maxV = 0.35;
+      p.vx = Math.max(-maxV, Math.min(maxV, p.vx));
+      p.vy = Math.max(-maxV, Math.min(maxV, p.vy));
+
+      // mouse repulsion
+      if (mouseOn) {
+        const dx = p.x - mouse.x;
+        const dy = p.y - mouse.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < influenceRadius) {
+          const force = (1 - dist / influenceRadius) * 0.6;
+          p.vx += (dx / dist || 0) * force;
+          p.vy += (dy / dist || 0) * force;
+        }
+      }
+
+      // move
+      p.x += p.vx * dt * 60;
+      p.y += p.vy * dt * 60;
+
+      // gentle wrap
+      if (p.x < -20) p.x = w + 20;
+      if (p.x > w + 20) p.x = -20;
+      if (p.y < -20) p.y = h + 20;
+      if (p.y > h + 20) p.y = -20;
+    }
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, w, h);
+
+    // draw links selectively (sparse for perf)
+    for (let i = 0; i < particles.length; i++) {
+      const a = particles[i];
+      for (let j = i + 1; j < particles.length; j++) {
+        const b = particles[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < linkDist * linkDist && Math.random() < 0.2) {
+          drawLink(a, b, Math.sqrt(distSq));
+        }
+      }
+    }
+
+    particles.forEach(drawParticle);
+  }
+
+  function loop(ts) {
+    const dt = Math.min(0.05, (ts - lastTime) / 1000 || 0.016);
+    lastTime = ts;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function onMove(e) {
+    mouse.active = true;
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  }
+
+  window.addEventListener('pointermove', onMove, { passive: true });
+  window.addEventListener('pointerdown', onMove, { passive: true });
+  window.addEventListener('resize', resize);
+
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
