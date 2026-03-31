@@ -141,7 +141,9 @@
   }
 
   .stats-row {
-    display: grid; grid-template-columns: repeat(3,1fr); gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 12px;
   }
   .stat-box {
     background: var(--surface2);
@@ -175,12 +177,13 @@
 
   .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-columns: repeat(4, minmax(0,1fr));
     gap: 14px;
     margin-bottom: 14px;
   }
-  @media(max-width:680px){ .form-grid { grid-template-columns: 1fr 1fr; } }
-  @media(max-width:420px){ .form-grid { grid-template-columns: 1fr; } }
+  @media(max-width:900px){ .form-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+  @media(max-width:680px){ .form-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media(max-width:480px){ .form-grid { grid-template-columns: 1fr; } }
 
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field.full { grid-column: 1 / -1; }
@@ -311,6 +314,54 @@
   .empty-state .big-icon { font-size: 2.5rem; margin-bottom: 12px; }
   .empty-state p { font-size: 0.88rem; }
 
+  /* Utility grids for mobile responsiveness */
+  .two-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .session-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 10px;
+  }
+
+  /* Responsive adjustments */
+  @media(max-width:900px){
+    body { padding: 20px 14px 56px; }
+    header, .progress-section, .form-card, .log-section { margin: 0 auto 22px; padding: 20px 22px; }
+    .stats-row { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  }
+
+  @media(max-width:720px){
+    header { flex-direction: column; align-items: flex-start; }
+    .brand { width: 100%; justify-content: space-between; }
+    .export-btn { width: 100%; justify-content: center; }
+    .progress-top { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .progress-section, .form-card, .log-section { padding: 18px 18px; }
+    .chip { top: 12px; right: 12px; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  @media(max-width:560px){
+    body { padding: 16px 12px 52px; }
+    .brand-icon { width: 36px; height: 36px; font-size: 18px; }
+    .brand-text h1 { font-size: 1.15rem; }
+    .brand-text p { font-size: 0.72rem; }
+    .session-grid { grid-template-columns: 1fr; }
+    table { font-size: 0.78rem; }
+    thead th, tbody td { padding: 9px 10px; }
+    .log-header { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .table-wrap { margin: 0 -8px; padding: 0 8px; }
+  }
+
+  @media(max-width:420px){
+    .stats-row { grid-template-columns: 1fr; }
+    .progress-nums .done { font-size: 1.7rem; }
+    .export-btn { padding: 10px 14px; }
+  }
+
   /* ── TOAST ── */
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px);
@@ -391,7 +442,7 @@
 <div class="form-card">
   <h2>✏️ <span>Log Today's Hours</span></h2>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+  <div class="two-col">
     <div class="field">
       <label>Date</label>
       <input type="date" id="entryDate"/>
@@ -408,10 +459,10 @@
   </div>
 
   <div id="timeFields">
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+    <div class="two-col">
       <div id="morBlock" style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;">
         <div style="font-size:0.72rem; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">🌤 Morning</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="session-grid">
           <div class="field">
             <label>Time In</label>
             <input type="time" id="morIn" oninput="computeHours()"/>
@@ -424,7 +475,7 @@
       </div>
       <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;" id="aftBlock">
         <div style="font-size:0.72rem; color:var(--warn); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">🌇 Afternoon</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="session-grid">
           <div class="field">
             <label>Time In</label>
             <input type="time" id="aftIn" oninput="computeHours()"/>
