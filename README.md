@@ -1,17 +1,17 @@
-# 📋 OJT Hours Tracker
+# OJT Hours Tracker
 
 A lightweight, single-file web app for tracking your On-the-Job Training (OJT) hours toward the **480-hour requirement**. No installation, no server — just open the HTML file in a browser.
 
 ---
 
-## ✨ Features
+## Features
 
-### 📊 Progress Dashboard
+### Progress Dashboard
 - Live progress bar tracking hours rendered vs. the 480-hour target
 - At-a-glance stats: **Days Logged**, **Hours Remaining**, and **Average Hours/Day**
 - Percentage completion badge that updates in real time
 
-### ✏️ Daily Entry Form
+### Daily Entry Form
 Log each OJT day with:
 - **Date picker** — defaults to today
 - **Attendance status** — Present, Half Day (AM), Half Day (PM), or Absent
@@ -20,13 +20,13 @@ Log each OJT day with:
 - **Auto-computed total hours** — calculated live as you fill in the time fields
 - Input validation with descriptive error toasts (e.g., missing In/Out pairs)
 
-### 📅 Daily Log Table
+### Daily Log Table
 - Sortable, scrollable table of all logged entries
 - Displays date, status badge, morning/afternoon times, and total hours per day
-- Delete any entry with a single click (✕ button)
+- Delete any entry with a single click (Delete button)
 - Entry count shown in the table header
 
-### 📤 Export to Excel
+### Export to Excel
 Exports an `.xlsx` workbook with **two sheets**:
 
 | Sheet | Contents |
@@ -36,19 +36,19 @@ Exports an `.xlsx` workbook with **two sheets**:
 
 The file is saved as `OJT_DTR_<today's date>.xlsx`.
 
-### 🎨 UI & Visual Design
+### UI & Visual Design
 - **Dark theme** — GitHub-inspired dark color palette (`#0d1117` background)
 - **Typography** — Sora (UI) + Space Mono (monospaced values)
 - **Animated particle background** — canvas-based floating particles with subtle connecting lines
 - **Mouse interaction** — particles react to your cursor (repulsion + parallax); toggle on/off via the **Interaction** chip in the top-right corner
 - Responsive layout — adapts to tablet and mobile screen sizes
 
-### 💾 Persistence
+### Persistence
 All entries are saved automatically to **`localStorage`**. Your data survives page refreshes and browser restarts — no account or backend required.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 1. **Download** `OJT-TRACKER.html`
 2. **Open** it in any modern browser (Chrome, Edge, Firefox, Safari)
@@ -58,7 +58,7 @@ All entries are saved automatically to **`localStorage`**. Your data survives pa
 
 ---
 
-## 🖥️ Usage Guide
+## Usage Guide
 
 ### Logging a Day
 1. Set the **Date** (defaults to today)
@@ -72,14 +72,14 @@ All entries are saved automatically to **`localStorage`**. Your data survives pa
 5. Click **Add Entry** — a success toast confirms the save
 
 ### Deleting an Entry
-Click the **✕** button on any row in the Daily Log table.
+Click the **Delete** button on any row in the Daily Log table.
 
 ### Exporting
 Click **Export to Excel** in the header. The `.xlsx` file downloads immediately.
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 The required hour target is set via a CSS variable at the top of the file and a matching JS constant:
 
@@ -99,7 +99,7 @@ Change both values to adjust the target (e.g., `240` for a shorter program).
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Technology | Purpose |
 |---|---|
@@ -111,7 +111,7 @@ Change both values to adjust the target (e.g., `240` for a shorter program).
 
 ---
 
-## 📁 File Structure
+## File Structure
 
 This is a **single-file application** — everything (HTML, CSS, JS) lives in `OJT-TRACKER.html`. No build step, no dependencies to install.
 
@@ -121,7 +121,7 @@ OJT-TRACKER.html   ← the entire app
 
 ---
 
-## ⚠️ Notes & Limitations
+## Notes & Limitations
 
 - Data is stored in **localStorage** and is **browser-specific** — clearing browser data will erase entries. Export to Excel regularly as a backup.
 - The DTR sheet is formatted for a **60-day grid** (rows 1–60). Entries beyond Day 60 appear in the Attendance sheet but not in the DTR grid.
