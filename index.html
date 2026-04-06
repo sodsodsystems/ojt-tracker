@@ -270,6 +270,22 @@
   }
   .ghost-btn:hover { border-color: var(--accent); color: var(--text); background: rgba(88,166,255,.06); }
 
+  .mini-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    transition: all .2s;
+    text-transform: none;
+  }
+  .mini-btn:hover { border-color: var(--accent); color: var(--text); background: rgba(88,166,255,.06); }
+
   .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
   .edit-btn {
     background: none;
@@ -576,7 +592,10 @@
   <div id="timeFields">
     <div class="two-col">
       <div id="morBlock" style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;">
-        <div style="font-size:0.72rem; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; display:flex; align-items:center; gap:8px;"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-sun"></use></svg> Morning</div>
+        <div style="font-size:0.72rem; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <span style="display:inline-flex; align-items:center; gap:8px;"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-sun"></use></svg> Morning</span>
+          <button type="button" class="mini-btn" onclick="autofillMorning()">Autofill</button>
+        </div>
         <div class="session-grid">
           <div class="field">
             <label>Time In</label>
@@ -589,7 +608,10 @@
         </div>
       </div>
       <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;" id="aftBlock">
-        <div style="font-size:0.72rem; color:var(--warn); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; display:flex; align-items:center; gap:8px;"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-sunset"></use></svg> Afternoon</div>
+        <div style="font-size:0.72rem; color:var(--warn); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <span style="display:inline-flex; align-items:center; gap:8px;"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-sunset"></use></svg> Afternoon</span>
+          <button type="button" class="mini-btn" onclick="autofillAfternoon()">Autofill</button>
+        </div>
         <div class="session-grid">
           <div class="field">
             <label>Time In</label>
@@ -726,7 +748,6 @@ function normalizeEntries(raw) {
     const tt = normalizeTime(t);
     if (!tt) return '';
     const [h, m] = tt.split(':').map(Number);
-    if (h === 12) return `00:${String(m).padStart(2, '0')}`;
     if (h > 12) return `${String(h - 12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     return tt;
   };
@@ -939,7 +960,6 @@ function normalizeMorningAm(t) {
   const tt = normalizeTimeText(t);
   if (!tt) return '';
   const [h, m] = tt.split(':').map(Number);
-  if (h === 12) return `00:${String(m).padStart(2, '0')}`;
   if (h > 12) return `${String(h - 12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   return tt;
 }
@@ -984,6 +1004,26 @@ function normalizeFormTimes() {
   } finally {
     isNormalizingTime = false;
   }
+}
+
+function autofillMorning() {
+  const status = document.getElementById('statusField')?.value || 'present';
+  if (status === 'absent' || status === 'halfday-pm') return showToast('Morning autofill is not available for this status.', 'error');
+  document.getElementById('morIn').value = '08:00';
+  document.getElementById('morOut').value = '12:00';
+  normalizeFormTimes();
+  computeHours();
+  saveDraft();
+}
+
+function autofillAfternoon() {
+  const status = document.getElementById('statusField')?.value || 'present';
+  if (status === 'absent' || status === 'halfday-am') return showToast('Afternoon autofill is not available for this status.', 'error');
+  document.getElementById('aftIn').value = '13:00';
+  document.getElementById('aftOut').value = '18:00';
+  normalizeFormTimes();
+  computeHours();
+  saveDraft();
 }
 
 function onTimeInput() {
@@ -1127,6 +1167,7 @@ function validateEntry(data) {
 
   const anyMorning = !!(data.morIn || data.morOut);
   const anyAfternoon = !!(data.aftIn || data.aftOut);
+  const minsOrNull = (t) => (t ? toMins(t) : null);
 
   if (data.status === 'absent') {
     if (anyMorning || anyAfternoon) return { ok: false, msg: 'Absent entries must not have time values.' };
@@ -1146,6 +1187,27 @@ function validateEntry(data) {
   if (data.status === 'halfday-am' && (!data.morIn || !data.morOut)) return { ok: false, msg: 'Please enter Morning In and Out.' };
   if (data.status === 'halfday-pm' && (!data.aftIn || !data.aftOut)) return { ok: false, msg: 'Please enter Afternoon In and Out.' };
   if (data.status === 'present' && !anyMorning && !anyAfternoon) return { ok: false, msg: 'Please enter at least one time session.' };
+
+  // Morning rules: must be AM-only, except Time Out can be exactly 12:00 PM (no other 12:xx)
+  if (anyMorning) {
+    const mi = minsOrNull(data.morIn);
+    const mo = minsOrNull(data.morOut);
+    const noon = 12 * 60;
+    if (mi !== null && mi >= noon) return { ok: false, msg: 'Morning Time In must be before 12:00 PM.' };
+    if (mo !== null && mo > noon) return { ok: false, msg: 'Morning Time Out can only go up to 12:00 PM.' };
+    if (mo !== null && mo === noon) {
+      // ok (exactly 12:00)
+    }
+  }
+
+  // Afternoon rules: must be PM-only, starting at 1:00 PM or later
+  if (anyAfternoon) {
+    const ai = minsOrNull(data.aftIn);
+    const ao = minsOrNull(data.aftOut);
+    const onePm = 13 * 60;
+    if (ai !== null && ai < onePm) return { ok: false, msg: 'Afternoon Time In must be 1:00 PM or later.' };
+    if (ao !== null && ao < onePm) return { ok: false, msg: 'Afternoon Time Out must be 1:00 PM or later.' };
+  }
 
   const hrs = computeHours();
   if (!hrs) return { ok: false, msg: 'Check your time entries.' };
