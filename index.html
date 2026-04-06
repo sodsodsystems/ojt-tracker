@@ -216,10 +216,12 @@
     outline: none;
     transition: border-color .2s;
     width: 100%;
+    min-height: 42px;
+    min-width: 0;
   }
   .field textarea { resize: vertical; min-height: 80px; }
   .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); }
-  .field input[type="time"] { cursor: pointer; }
+  .field input[type="time"] { cursor: pointer; font-variant-numeric: tabular-nums; }
   .field select { cursor: pointer; }
 
   .computed-hours {
@@ -421,6 +423,10 @@
     .session-grid { grid-template-columns: 1fr; }
     .form-actions { flex-direction: column; align-items: stretch; }
     .form-actions .add-btn, .form-actions .ghost-btn { width: 100%; justify-content: center; }
+    /* Prevent iOS zoom + keep form controls proportionate */
+    .field input[type="time"],
+    .field input[type="date"],
+    .field select { font-size: 16px; min-height: 44px; }
     table { font-size: 0.78rem; }
     thead th, tbody td { padding: 9px 10px; }
     .log-header { flex-direction: column; align-items: flex-start; gap: 6px; }
