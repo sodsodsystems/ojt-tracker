@@ -249,6 +249,40 @@
   .add-btn:hover { opacity: .88; }
   .add-btn:active { transform: scale(.97); }
 
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .ghost-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.86rem; font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .ghost-btn:hover { border-color: var(--accent); color: var(--text); background: rgba(88,166,255,.06); }
+
+  .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+  .edit-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--muted);
+    border-radius: 6px;
+    width: 28px; height: 28px;
+    cursor: pointer;
+    display: grid; place-items: center;
+    font-size: 14px;
+    transition: all .2s;
+  }
+  .edit-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,.08); }
+
   /* ── LOG TABLE ── */
   .log-section {
     max-width: 900px;
@@ -543,11 +577,11 @@
         <div class="session-grid">
           <div class="field">
             <label>Time In</label>
-            <input type="time" id="morIn" oninput="computeHours()"/>
+            <input type="time" id="morIn" oninput="onTimeInput(this.id)"/>
           </div>
           <div class="field">
             <label>Time Out</label>
-            <input type="time" id="morOut" oninput="computeHours()"/>
+            <input type="time" id="morOut" oninput="onTimeInput(this.id)"/>
           </div>
         </div>
       </div>
@@ -556,11 +590,11 @@
         <div class="session-grid">
           <div class="field">
             <label>Time In</label>
-            <input type="time" id="aftIn" oninput="computeHours()"/>
+            <input type="time" id="aftIn" oninput="onTimeInput(this.id)"/>
           </div>
           <div class="field">
             <label>Time Out</label>
-            <input type="time" id="aftOut" oninput="computeHours()"/>
+            <input type="time" id="aftOut" oninput="onTimeInput(this.id)"/>
           </div>
         </div>
       </div>
@@ -577,10 +611,16 @@
     <div>This day will be marked as <strong>Absent</strong> — no hours will be counted.</div>
   </div>
 
-  <button class="add-btn" onclick="addEntry()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    Add Entry
-  </button>
+  <div class="form-actions">
+    <button class="add-btn" id="submitBtn" onclick="submitEntry()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span id="submitBtnText">Add Entry</span>
+    </button>
+    <button class="ghost-btn" id="cancelEditBtn" type="button" onclick="cancelEdit()" style="display:none">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#i-x-circle"></use></svg>
+      Cancel
+    </button>
+  </div>
 </div>
 
 <!-- LOG TABLE -->
@@ -626,6 +666,7 @@ const TOTAL_HOURS = 480;
 
 let startupToast = null;
 let entries = loadEntries();
+let editingId = null;
 
 function iconHtml(name, extraClass = '') {
   const cls = ['icon', extraClass].filter(Boolean).join(' ');
@@ -662,6 +703,31 @@ function safeJsonParse(text) {
 
 function normalizeEntries(raw) {
   if (!Array.isArray(raw)) return [];
+  const normalizeTime = (t) => {
+    if (!t || typeof t !== 'string') return '';
+    const m = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return '';
+    const hh = Math.max(0, Math.min(23, parseInt(m[1], 10)));
+    const mm = Math.max(0, Math.min(59, parseInt(m[2], 10)));
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  };
+  const toPm = (t) => {
+    const tt = normalizeTime(t);
+    if (!tt) return '';
+    const [h, m] = tt.split(':').map(Number);
+    if (h === 12) return tt;
+    if (h < 12) return `${String(h + 12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    return tt;
+  };
+  const toAm = (t) => {
+    const tt = normalizeTime(t);
+    if (!tt) return '';
+    const [h, m] = tt.split(':').map(Number);
+    if (h === 12) return `00:${String(m).padStart(2, '0')}`;
+    if (h > 12) return `${String(h - 12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    return tt;
+  };
+
   const cleaned = raw.map((p, idx) => ({
     id: p?.id || Date.now() + idx,
     date: p?.date || '',
@@ -672,6 +738,31 @@ function normalizeEntries(raw) {
     aftOut: p?.aftOut || '',
     hours: Number(p?.hours) || 0
   }));
+
+  // Enforce "Morning = AM" and "Afternoon = PM" for stored entries (safe auto-correction)
+  cleaned.forEach((e) => {
+    const st = e.status || 'present';
+    if (st === 'absent') {
+      e.morIn = e.morOut = e.aftIn = e.aftOut = '';
+      e.hours = 0;
+      return;
+    }
+
+    if (st !== 'halfday-pm') {
+      e.morIn = toAm(e.morIn);
+      e.morOut = toAm(e.morOut);
+    } else {
+      e.morIn = e.morOut = '';
+    }
+
+    if (st !== 'halfday-am') {
+      e.aftIn = toPm(e.aftIn);
+      e.aftOut = toPm(e.aftOut);
+    } else {
+      e.aftIn = e.aftOut = '';
+    }
+  });
+
   return cleaned.sort((a,b) => (a.date || '').localeCompare(b.date || ''));
 }
 
@@ -832,12 +923,88 @@ document.getElementById('backupFile').addEventListener('change', async (e) => {
   }
 });
 
+let isNormalizingTime = false;
+function normalizeTimeText(t) {
+  if (!t || typeof t !== 'string') return '';
+  const m = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return '';
+  const hh = Math.max(0, Math.min(23, parseInt(m[1], 10)));
+  const mm = Math.max(0, Math.min(59, parseInt(m[2], 10)));
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+function normalizeMorningAm(t) {
+  const tt = normalizeTimeText(t);
+  if (!tt) return '';
+  const [h, m] = tt.split(':').map(Number);
+  if (h === 12) return `00:${String(m).padStart(2, '0')}`;
+  if (h > 12) return `${String(h - 12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return tt;
+}
+function normalizeAfternoonPm(t) {
+  const tt = normalizeTimeText(t);
+  if (!tt) return '';
+  const [h, m] = tt.split(':').map(Number);
+  if (h === 12) return tt;
+  if (h < 12) return `${String(h + 12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return tt;
+}
+function normalizeFormTimes() {
+  if (isNormalizingTime) return;
+  isNormalizingTime = true;
+  try {
+    const status = document.getElementById('statusField')?.value || 'present';
+    const morIn = document.getElementById('morIn');
+    const morOut = document.getElementById('morOut');
+    const aftIn = document.getElementById('aftIn');
+    const aftOut = document.getElementById('aftOut');
+
+    if (!morIn || !morOut || !aftIn || !aftOut) return;
+
+    if (status === 'absent') {
+      morIn.value = ''; morOut.value = ''; aftIn.value = ''; aftOut.value = '';
+      return;
+    }
+
+    if (status !== 'halfday-pm') {
+      morIn.value = normalizeMorningAm(morIn.value);
+      morOut.value = normalizeMorningAm(morOut.value);
+    } else {
+      morIn.value = ''; morOut.value = '';
+    }
+
+    if (status !== 'halfday-am') {
+      aftIn.value = normalizeAfternoonPm(aftIn.value);
+      aftOut.value = normalizeAfternoonPm(aftOut.value);
+    } else {
+      aftIn.value = ''; aftOut.value = '';
+    }
+  } finally {
+    isNormalizingTime = false;
+  }
+}
+
+function onTimeInput() {
+  normalizeFormTimes();
+  computeHours();
+  saveDraft();
+}
+
 function computeHours() {
-  const morIn  = document.getElementById('morIn').value;
-  const morOut = document.getElementById('morOut').value;
-  const aftIn  = document.getElementById('aftIn').value;
-  const aftOut = document.getElementById('aftOut').value;
+  const status = document.getElementById('statusField')?.value || 'present';
+  let morIn  = document.getElementById('morIn').value;
+  let morOut = document.getElementById('morOut').value;
+  let aftIn  = document.getElementById('aftIn').value;
+  let aftOut = document.getElementById('aftOut').value;
   const el     = document.getElementById('computedHours');
+
+  if (status === 'absent') {
+    el.textContent = '— hrs';
+    el.style.color = 'var(--muted)';
+    return null;
+  }
+
+  if (status === 'halfday-am') { aftIn = ''; aftOut = ''; }
+  if (status === 'halfday-pm') { morIn = ''; morOut = ''; }
 
   let total = 0;
   if (morIn && morOut) {
@@ -866,6 +1033,13 @@ function onStatusChange() {
   if (status === 'absent') {
     timeFields.style.display = 'none';
     absentNote.style.display = 'flex';
+    document.getElementById('morIn').value  = '';
+    document.getElementById('morOut').value = '';
+    document.getElementById('aftIn').value  = '';
+    document.getElementById('aftOut').value = '';
+    normalizeFormTimes();
+    computeHours();
+    saveDraft();
     return;
   }
 
@@ -886,7 +1060,9 @@ function onStatusChange() {
     morBlock.style.display = 'block';
     aftBlock.style.display = 'block';
   }
+  normalizeFormTimes();
   computeHours();
+  saveDraft();
 }
 
 function toMins(t) {
@@ -909,35 +1085,16 @@ function fmtDate(d) {
   return `${months[+m-1]} ${+day}, ${y}`;
 }
 
-function addEntry() {
-  const date   = document.getElementById('entryDate').value;
-  const status = document.getElementById('statusField').value;
-  const morIn  = document.getElementById('morIn').value;
-  const morOut = document.getElementById('morOut').value;
-  const aftIn  = document.getElementById('aftIn').value;
-  const aftOut = document.getElementById('aftOut').value;
+function setEditMode(on) {
+  const submitText = document.getElementById('submitBtnText');
+  const cancelBtn = document.getElementById('cancelEditBtn');
+  if (submitText) submitText.textContent = on ? 'Save Changes' : 'Add Entry';
+  if (cancelBtn) cancelBtn.style.display = on ? 'inline-flex' : 'none';
+}
 
-  if (!date) return showToast('Please enter a date.', 'error');
-
-  let hrs = 0;
-  if (status !== 'absent') {
-    if (status === 'halfday-am' || status === 'present') {
-      if ((morIn && !morOut) || (!morIn && morOut)) return showToast('Morning needs both In and Out.', 'error');
-    }
-    if (status === 'halfday-pm' || status === 'present') {
-      if ((aftIn && !aftOut) || (!aftIn && aftOut)) return showToast('Afternoon needs both In and Out.', 'error');
-    }
-    if (status === 'halfday-am' && (!morIn || !morOut)) return showToast('Please enter Morning In and Out.', 'error');
-    if (status === 'halfday-pm' && (!aftIn || !aftOut)) return showToast('Please enter Afternoon In and Out.', 'error');
-    if (status === 'present' && !morIn && !morOut && !aftIn && !aftOut) return showToast('Please enter at least one time session.', 'error');
-    hrs = computeHours();
-    if (!hrs) return showToast('Check your time entries.', 'error');
-  }
-
-  entries.push({ id: Date.now(), date, status, morIn, morOut, aftIn, aftOut, hours: hrs });
-  entries.sort((a,b) => a.date.localeCompare(b.date));
-  saveEntries();
-  renderAll();
+function resetForm() {
+  editingId = null;
+  setEditMode(false);
 
   document.getElementById('morIn').value  = '';
   document.getElementById('morOut').value = '';
@@ -949,12 +1106,121 @@ function addEntry() {
   document.getElementById('statusField').value = 'present';
   onStatusChange();
   clearDraft();
-
-  showToast('Entry added successfully.');
 }
+
+function readEntryFromForm() {
+  return {
+    date: document.getElementById('entryDate').value,
+    status: document.getElementById('statusField').value,
+    morIn: document.getElementById('morIn').value,
+    morOut: document.getElementById('morOut').value,
+    aftIn: document.getElementById('aftIn').value,
+    aftOut: document.getElementById('aftOut').value,
+  };
+}
+
+function validateEntry(data) {
+  if (!data.date) return { ok: false, msg: 'Please enter a date.' };
+
+  const anyMorning = !!(data.morIn || data.morOut);
+  const anyAfternoon = !!(data.aftIn || data.aftOut);
+
+  if (data.status === 'absent') {
+    if (anyMorning || anyAfternoon) return { ok: false, msg: 'Absent entries must not have time values.' };
+    return { ok: true, hours: 0 };
+  }
+
+  if (data.status === 'halfday-am' && anyAfternoon) {
+    return { ok: false, msg: 'Half Day (AM) must only have Morning time values.' };
+  }
+  if (data.status === 'halfday-pm' && anyMorning) {
+    return { ok: false, msg: 'Half Day (PM) must only have Afternoon time values.' };
+  }
+
+  if ((data.morIn && !data.morOut) || (!data.morIn && data.morOut)) return { ok: false, msg: 'Morning needs both In and Out.' };
+  if ((data.aftIn && !data.aftOut) || (!data.aftIn && data.aftOut)) return { ok: false, msg: 'Afternoon needs both In and Out.' };
+
+  if (data.status === 'halfday-am' && (!data.morIn || !data.morOut)) return { ok: false, msg: 'Please enter Morning In and Out.' };
+  if (data.status === 'halfday-pm' && (!data.aftIn || !data.aftOut)) return { ok: false, msg: 'Please enter Afternoon In and Out.' };
+  if (data.status === 'present' && !anyMorning && !anyAfternoon) return { ok: false, msg: 'Please enter at least one time session.' };
+
+  const hrs = computeHours();
+  if (!hrs) return { ok: false, msg: 'Check your time entries.' };
+  return { ok: true, hours: hrs };
+}
+
+function submitEntry() {
+  normalizeFormTimes();
+  const data = readEntryFromForm();
+  const v = validateEntry(data);
+  if (!v.ok) return showToast(v.msg, 'error');
+
+  const wasEdit = !!editingId;
+  const entry = {
+    id: editingId || Date.now(),
+    date: data.date,
+    status: data.status,
+    morIn: data.morIn,
+    morOut: data.morOut,
+    aftIn: data.aftIn,
+    aftOut: data.aftOut,
+    hours: v.hours
+  };
+
+  if (editingId) {
+    const idx = entries.findIndex(e => e.id === editingId);
+    if (idx === -1) {
+      resetForm();
+      return showToast('Could not update: entry not found.', 'error');
+    }
+    entries[idx] = entry;
+  } else {
+    entries.push(entry);
+  }
+
+  entries.sort((a,b) => a.date.localeCompare(b.date));
+  saveEntries();
+  renderAll();
+  resetForm();
+
+  showToast(wasEdit ? 'Entry updated.' : 'Entry added successfully.');
+}
+
+function startEdit(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return showToast('Entry not found.', 'error');
+
+  editingId = id;
+  setEditMode(true);
+
+  document.getElementById('entryDate').value = e.date || '';
+  const status = e.status || 'present';
+  document.getElementById('statusField').value = status;
+  onStatusChange();
+
+  document.getElementById('morIn').value  = status === 'halfday-pm' || status === 'absent' ? '' : (e.morIn  || '');
+  document.getElementById('morOut').value = status === 'halfday-pm' || status === 'absent' ? '' : (e.morOut || '');
+  document.getElementById('aftIn').value  = status === 'halfday-am' || status === 'absent' ? '' : (e.aftIn  || '');
+  document.getElementById('aftOut').value = status === 'halfday-am' || status === 'absent' ? '' : (e.aftOut || '');
+  normalizeFormTimes();
+  computeHours();
+  saveDraft();
+
+  const card = document.querySelector('.form-card');
+  if (card?.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEdit() {
+  resetForm();
+  showToast('Edit cancelled.');
+}
+
+// Backward compatible alias (older inline handlers)
+function addEntry() { submitEntry(); }
 
 function deleteEntry(id) {
   entries = entries.filter(e => e.id !== id);
+  if (editingId === id) resetForm();
   saveEntries();
   renderAll();
   showToast('Entry removed.');
@@ -993,7 +1259,12 @@ function renderTable() {
       <td class="td-time">${(e.status === 'absent' || e.status === 'halfday-am') ? '—' : fmt12(e.aftIn)}</td>
       <td class="td-time">${(e.status === 'absent' || e.status === 'halfday-am') ? '—' : fmt12(e.aftOut)}</td>
       <td class="td-hours">${e.status === 'absent' ? '<span style="color:var(--accent3)">0.00</span>' : (+e.hours).toFixed(2)}</td>
-      <td><button class="delete-btn" onclick="deleteEntry(${e.id})" title="Delete">${iconHtml('trash','icon-sm')}</button></td>
+      <td>
+        <div class="row-actions">
+          <button class="edit-btn" onclick="startEdit(${e.id})" title="Edit" aria-label="Edit">${iconHtml('pencil','icon-sm')}</button>
+          <button class="delete-btn" onclick="deleteEntry(${e.id})" title="Delete" aria-label="Delete">${iconHtml('trash','icon-sm')}</button>
+        </div>
+      </td>
     </tr>
   `).join('');
 }
@@ -1154,13 +1425,19 @@ renderAll();
 const draftLoaded = loadDraft();
 if (!draftLoaded) document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
 onStatusChange();
+normalizeFormTimes();
 computeHours();
 
-['entryDate','statusField','morIn','morOut','aftIn','aftOut'].forEach((id) => {
+['entryDate','statusField'].forEach((id) => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', saveDraft, { passive: true });
   el.addEventListener('change', saveDraft, { passive: true });
+});
+['morIn','morOut','aftIn','aftOut'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('change', onTimeInput, { passive: true });
 });
 
 window.addEventListener('beforeunload', () => {
