@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OJT Hours Tracker</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2048%2048%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27g%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%271%27%20y2%3D%271%27%3E%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%2358a6ff%27/%3E%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%231d6fbd%27/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2748%27%20height%3D%2748%27%20rx%3D%2710%27%20fill%3D%27url(%23g)%27/%3E%3Cpath%20d%3D%27M17%2016a3%203%200%200%201%203-3h8a3%203%200%200%201%203%203v2h1a3%203%200%200%201%203%203v15a4%204%200%200%201-4%204H19a4%204%200%200%201-4-4V21a3%203%200%200%201%203-3h1v-2z%27%20fill%3D%27none%27%20stroke%3D%27%23fff%27%20stroke-width%3D%273%27%20stroke-linejoin%3D%27round%27/%3E%3Cpath%20d%3D%27M21%2021h10M21%2027h10M21%2033h10%27%20fill%3D%27none%27%20stroke%3D%27%23fff%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <style>
@@ -151,8 +152,8 @@
   .progress-bar-fill {
     height: 100%;
     border-radius: 99px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    transition: width .6s cubic-bezier(.4,0,.2,1);
+    background: var(--accent);
+    transition: width .6s cubic-bezier(.4,0,.2,1), background .6s cubic-bezier(.4,0,.2,1);
     min-width: 4px;
   }
 
@@ -615,21 +616,184 @@
 <div class="toast" id="toast"></div>
 
 <script>
+const APP_VERSION = '2026-04-06';
 const STORE_KEY = 'ojt_tracker_entries';
+const STORE_BACKUP_KEY = 'ojt_tracker_entries__backup';
+const STORE_SNAPSHOT_KEY = 'ojt_tracker_entries__snapshots';
+const STORE_META_KEY = 'ojt_tracker__meta';
+const STORE_DRAFT_KEY = 'ojt_tracker__draft';
 const TOTAL_HOURS = 480;
 
-let entries = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
+let startupToast = null;
+let entries = loadEntries();
 
 function iconHtml(name, extraClass = '') {
   const cls = ['icon', extraClass].filter(Boolean).join(' ');
   return `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
 }
 
-// Set default date to today
-document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+function clamp01(n) { return Math.min(1, Math.max(0, n)); }
+function hexToRgb(hex) {
+  const v = hex.replace('#', '').trim();
+  const full = v.length === 3 ? v.split('').map((c) => c + c).join('') : v;
+  const num = parseInt(full, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+function rgbToHex({ r, g, b }) {
+  const toHex = (n) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+function mixHex(a, b, t) {
+  const c1 = hexToRgb(a);
+  const c2 = hexToRgb(b);
+  const tt = clamp01(t);
+  const mix = (x, y) => Math.round(x + (y - x) * tt);
+  return rgbToHex({ r: mix(c1.r, c2.r), g: mix(c1.g, c2.g), b: mix(c1.b, c2.b) });
+}
+function lightenHex(hex, amount = 0.15) {
+  const c = hexToRgb(hex);
+  const mix = (x) => Math.round(x + (255 - x) * clamp01(amount));
+  return rgbToHex({ r: mix(c.r), g: mix(c.g), b: mix(c.b) });
+}
 
-function saveEntries() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(entries));
+function safeJsonParse(text) {
+  try { return JSON.parse(text); } catch { return null; }
+}
+
+function normalizeEntries(raw) {
+  if (!Array.isArray(raw)) return [];
+  const cleaned = raw.map((p, idx) => ({
+    id: p?.id || Date.now() + idx,
+    date: p?.date || '',
+    status: p?.status || 'present',
+    morIn: p?.morIn || '',
+    morOut: p?.morOut || '',
+    aftIn: p?.aftIn || '',
+    aftOut: p?.aftOut || '',
+    hours: Number(p?.hours) || 0
+  }));
+  return cleaned.sort((a,b) => (a.date || '').localeCompare(b.date || ''));
+}
+
+function loadEntriesFromKey(key) {
+  const txt = localStorage.getItem(key);
+  if (!txt) return null;
+  const parsed = safeJsonParse(txt);
+  if (!parsed) return null;
+  const normalized = normalizeEntries(parsed);
+  return normalized.length ? normalized : [];
+}
+
+function loadEntriesFromSnapshots() {
+  const txt = localStorage.getItem(STORE_SNAPSHOT_KEY);
+  if (!txt) return null;
+  const list = safeJsonParse(txt);
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const latest = list[list.length - 1];
+  const parsed = latest?.data ? safeJsonParse(latest.data) : null;
+  if (!parsed) return null;
+  const normalized = normalizeEntries(parsed);
+  return normalized.length ? normalized : [];
+}
+
+function loadEntriesFromLegacyScan() {
+  const candidates = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k) continue;
+    if (!k.toLowerCase().includes('ojt')) continue;
+    if (k === STORE_KEY || k === STORE_BACKUP_KEY || k === STORE_SNAPSHOT_KEY || k === STORE_META_KEY || k === STORE_DRAFT_KEY) continue;
+    const loaded = loadEntriesFromKey(k);
+    if (loaded) candidates.push({ key: k, entries: loaded });
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => (b.entries.length - a.entries.length));
+  return candidates[0].entries;
+}
+
+function loadEntries() {
+  const primary = loadEntriesFromKey(STORE_KEY);
+  const backup = loadEntriesFromKey(STORE_BACKUP_KEY);
+  const snap = loadEntriesFromSnapshots();
+  const legacy = loadEntriesFromLegacyScan();
+
+  const candidates = [
+    primary !== null ? { src: 'primary', data: primary } : null,
+    backup !== null ? { src: 'backup', data: backup } : null,
+    snap !== null ? { src: 'snapshot', data: snap } : null,
+    legacy !== null ? { src: 'legacy', data: legacy } : null
+  ].filter(Boolean);
+
+  if (candidates.length === 0) return [];
+
+  const priority = { primary: 4, backup: 3, snapshot: 2, legacy: 1 };
+  candidates.sort((a, b) => (b.data.length - a.data.length) || (priority[b.src] - priority[a.src]));
+  const best = candidates[0];
+
+  if (best.src === 'backup') startupToast = 'Recovered your saved data from backup.';
+  if (best.src === 'snapshot') startupToast = 'Recovered your saved data from an autosave snapshot.';
+  if (best.src === 'legacy') startupToast = 'Recovered your saved data from a legacy storage key.';
+
+  return best.data;
+}
+
+function saveEntries(opts = {}) {
+  const { snapshot = true } = opts;
+  const data = JSON.stringify(entries);
+
+  localStorage.setItem(STORE_KEY, data);
+  localStorage.setItem(STORE_BACKUP_KEY, data);
+
+  localStorage.setItem(STORE_META_KEY, JSON.stringify({
+    version: APP_VERSION,
+    updatedAt: new Date().toISOString(),
+    count: entries.length
+  }));
+
+  if (snapshot) {
+    const list = safeJsonParse(localStorage.getItem(STORE_SNAPSHOT_KEY) || '[]');
+    const snaps = Array.isArray(list) ? list : [];
+    const last = snaps[snaps.length - 1];
+    if (!last || last.data !== data) snaps.push({ ts: Date.now(), data });
+    localStorage.setItem(STORE_SNAPSHOT_KEY, JSON.stringify(snaps.slice(-15)));
+  }
+}
+
+function saveDraft() {
+  const draft = {
+    entryDate: document.getElementById('entryDate')?.value || '',
+    statusField: document.getElementById('statusField')?.value || 'present',
+    morIn: document.getElementById('morIn')?.value || '',
+    morOut: document.getElementById('morOut')?.value || '',
+    aftIn: document.getElementById('aftIn')?.value || '',
+    aftOut: document.getElementById('aftOut')?.value || ''
+  };
+  localStorage.setItem(STORE_DRAFT_KEY, JSON.stringify(draft));
+}
+
+function clearDraft() {
+  localStorage.removeItem(STORE_DRAFT_KEY);
+}
+
+function loadDraft() {
+  const raw = safeJsonParse(localStorage.getItem(STORE_DRAFT_KEY) || 'null');
+  if (!raw) return false;
+
+  const entryDate = document.getElementById('entryDate');
+  const statusField = document.getElementById('statusField');
+  const morIn = document.getElementById('morIn');
+  const morOut = document.getElementById('morOut');
+  const aftIn = document.getElementById('aftIn');
+  const aftOut = document.getElementById('aftOut');
+
+  if (entryDate && raw.entryDate) entryDate.value = raw.entryDate;
+  if (statusField && raw.statusField) statusField.value = raw.statusField;
+  if (morIn && raw.morIn) morIn.value = raw.morIn;
+  if (morOut && raw.morOut) morOut.value = raw.morOut;
+  if (aftIn && raw.aftIn) aftIn.value = raw.aftIn;
+  if (aftOut && raw.aftOut) aftOut.value = raw.aftOut;
+
+  return true;
 }
 
 function downloadBackup() {
@@ -657,20 +821,10 @@ document.getElementById('backupFile').addEventListener('change', async (e) => {
     const text = await file.text();
     const parsed = JSON.parse(text);
     if (!Array.isArray(parsed)) throw new Error('Invalid format');
-    // Basic shape validation
-    const cleaned = parsed.map((p, idx) => ({
-      id: p.id || Date.now() + idx,
-      date: p.date || '',
-      status: p.status || 'present',
-      morIn: p.morIn || '',
-      morOut: p.morOut || '',
-      aftIn: p.aftIn || '',
-      aftOut: p.aftOut || '',
-      hours: Number(p.hours) || 0
-    }));
-    entries = cleaned.sort((a,b) => (a.date || '').localeCompare(b.date || ''));
+    entries = normalizeEntries(parsed);
     saveEntries();
     renderAll();
+    clearDraft();
     showToast('Backup restored.');
   } catch (err) {
     console.error(err);
@@ -794,6 +948,7 @@ function addEntry() {
   document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('statusField').value = 'present';
   onStatusChange();
+  clearDraft();
 
   showToast('Entry added successfully.');
 }
@@ -851,7 +1006,12 @@ function renderProgress() {
 
   document.getElementById('doneHours').textContent   = done.toFixed(2);
   document.getElementById('pctBadge').textContent    = pct.toFixed(2) + '%';
-  document.getElementById('progressBar').style.width = pct + '%';
+  const bar = document.getElementById('progressBar');
+  bar.style.width = pct + '%';
+  const t = pct / 100;
+  const base = mixHex('#58a6ff', '#3fb950', t);
+  const hi = lightenHex(base, 0.18);
+  bar.style.background = `linear-gradient(90deg, ${hi}, ${base})`;
   document.getElementById('statDays').textContent    = entries.length;
   document.getElementById('statRemain').textContent  = rem.toFixed(2);
   document.getElementById('statAvg').textContent     = avg === '—' ? '—' : avg + ' hrs';
@@ -989,6 +1149,35 @@ function exportToExcel() {
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 renderAll();
+
+// Restore any saved draft (in-progress form) and keep it updated
+const draftLoaded = loadDraft();
+if (!draftLoaded) document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+onStatusChange();
+computeHours();
+
+['entryDate','statusField','morIn','morOut','aftIn','aftOut'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', saveDraft, { passive: true });
+  el.addEventListener('change', saveDraft, { passive: true });
+});
+
+window.addEventListener('beforeunload', () => {
+  try { saveEntries({ snapshot: true }); } catch {}
+  try { saveDraft(); } catch {}
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden') return;
+  try { saveEntries({ snapshot: true }); } catch {}
+  try { saveDraft(); } catch {}
+});
+
+if (startupToast) {
+  try { saveEntries({ snapshot: false }); } catch {}
+  showToast(startupToast);
+  startupToast = null;
+}
 
 // ───────────────── PARTICLE BACKGROUND (migrated from index demo) ──────────────
 (() => {
