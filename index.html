@@ -24,6 +24,7 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
 
   body {
     position: relative;
@@ -120,6 +121,7 @@
     transition: all .2s;
   }
   .export-btn:hover { background: #2ea043; color: #fff; }
+  .header-actions { width: 100%; max-width: 380px; }
 
   /* ── PROGRESS SECTION ── */
   .progress-section {
@@ -330,6 +332,7 @@
   }
 
   .table-wrap { overflow-x: auto; }
+  .table-wrap { -webkit-overflow-scrolling: touch; }
   table {
     width: 100%; border-collapse: collapse;
     font-size: 0.83rem;
@@ -413,6 +416,7 @@
     .progress-section, .form-card, .log-section { padding: 18px 18px; }
     .chip { top: 12px; right: 12px; }
     .two-col { grid-template-columns: 1fr; }
+    .header-actions { max-width: none; justify-content: stretch; }
   }
 
   @media(max-width:560px){
@@ -427,10 +431,20 @@
     .field input[type="time"],
     .field input[type="date"],
     .field select { font-size: 16px; min-height: 44px; }
+    .export-btn { min-height: 44px; }
+    .delete-btn, .edit-btn { width: 34px; height: 34px; }
+    .row-actions { gap: 8px; }
+    .mini-btn { padding: 7px 12px; }
     table { font-size: 0.78rem; }
     thead th, tbody td { padding: 9px 10px; }
     .log-header { flex-direction: column; align-items: flex-start; gap: 6px; }
     .table-wrap { margin: 0 -8px; padding: 0 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+    .progress-bar-fill { transition: none; }
+    .export-btn, .add-btn, .ghost-btn, .mini-btn, .delete-btn, .edit-btn { transition: none; }
   }
 
   @media(max-width:420px){
@@ -527,7 +541,7 @@
       <p>480-hour requirement monitor</p>
     </div>
   </div>
-  <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; width:100%; max-width:380px;">
+  <div class="header-actions" style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; width:100%; max-width:380px;">
     <button class="export-btn" style="flex:1; min-width:140px;" onclick="exportToExcel()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Export to Excel
