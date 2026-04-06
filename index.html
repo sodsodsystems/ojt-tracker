@@ -736,6 +736,12 @@ function normalizeEntries(raw) {
     const mm = Math.max(0, Math.min(59, parseInt(m[2], 10)));
     return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   };
+  const mins = (t) => {
+    const tt = normalizeTime(t);
+    if (!tt) return null;
+    const [h, m] = tt.split(':').map(Number);
+    return h * 60 + m;
+  };
   const toPm = (t) => {
     const tt = normalizeTime(t);
     if (!tt) return '';
@@ -775,6 +781,10 @@ function normalizeEntries(raw) {
     if (st !== 'halfday-pm') {
       e.morIn = toAm(e.morIn);
       e.morOut = toAm(e.morOut);
+
+      // Recovery for older bug where selecting 12:00 PM could become 00:00
+      const mi = mins(e.morIn);
+      if (e.morOut === '00:00' && mi !== null && mi >= (4 * 60)) e.morOut = '12:00';
     } else {
       e.morIn = e.morOut = '';
     }
@@ -991,6 +1001,12 @@ function normalizeFormTimes() {
     if (status !== 'halfday-pm') {
       morIn.value = normalizeMorningAm(morIn.value);
       morOut.value = normalizeMorningAm(morOut.value);
+
+      // Recovery for older bug where selecting 12:00 PM could become 00:00
+      if (morOut.value === '00:00' && morIn.value) {
+        const mi = toMins(morIn.value);
+        if (mi >= (4 * 60)) morOut.value = '12:00';
+      }
     } else {
       morIn.value = ''; morOut.value = '';
     }
