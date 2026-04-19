@@ -50,7 +50,7 @@ All entries are saved automatically to **`localStorage`**. Your data survives pa
 
 ## Getting Started
 
-1. **Download** `OJT-TRACKER.html`
+1. **Download** `index.html`
 2. **Open** it in any modern browser (Chrome, Edge, Firefox, Safari)
 3. Start logging your OJT days!
 
@@ -113,10 +113,10 @@ Change both values to adjust the target (e.g., `240` for a shorter program).
 
 ## File Structure
 
-This is a **single-file application** — everything (HTML, CSS, JS) lives in `OJT-TRACKER.html`. No build step, no dependencies to install.
+This is a **single-file application** — everything (HTML, CSS, JS) lives in `index.html`. No build step, no dependencies to install.
 
 ```
-OJT-TRACKER.html   ← the entire app
+index.html   ← the entire app
 ```
 
 ---

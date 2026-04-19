@@ -900,7 +900,7 @@ function saveEntries(opts = {}) {
     const snaps = Array.isArray(list) ? list : [];
     const last = snaps[snaps.length - 1];
     if (!last || last.data !== data) snaps.push({ ts: Date.now(), data });
-    localStorage.setItem(STORE_SNAPSHOT_KEY, JSON.stringify(snaps.slice(-15)));
+    localStorage.setItem(STORE_SNAPSHOT_KEY, JSON.stringify(snaps.slice(-3)));
   }
 }
 
@@ -1353,7 +1353,7 @@ function renderTable() {
   tbody.innerHTML = entries.map((e,i) => `
     <tr>
       <td class="td-time">${i+1}</td>
-      <td class="td-date">${fmtDate(e.date)}</td>
+      <td class="td-date">${escHtml(fmtDate(e.date))}</td>
       <td class="td-time">${statusLabel[e.status || 'present']}</td>
       <td class="td-time">${(e.status === 'absent' || e.status === 'halfday-pm') ? '—' : fmt12(e.morIn)}</td>
       <td class="td-time">${(e.status === 'absent' || e.status === 'halfday-pm') ? '—' : fmt12(e.morOut)}</td>
@@ -1418,7 +1418,7 @@ function exportToExcel() {
   // Row 2: sub-headers
   dtrRows.push(['', 'IN', 'OUT', 'IN', 'OUT', '', '', '', '']);
 
-  const totalDays = 60;
+  const totalDays = Math.max(60, sorted.length);
   let totalRenderedHrs = 0;
 
   for (let i = 0; i < totalDays; i++) {
