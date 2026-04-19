@@ -1350,7 +1350,13 @@ function renderTable() {
     'halfday-pm': `<span style="color:var(--warn);font-weight:600;display:inline-flex;align-items:center;gap:6px;">${iconHtml('sunset')} Half Day PM</span>`,
     absent: `<span style="color:var(--accent3);font-weight:600;display:inline-flex;align-items:center;gap:6px;">${iconHtml('x-circle')} Absent</span>`
   };
-  tbody.innerHTML = entries.map((e,i) => `
+  let html = '';
+  entries.forEach((e, i) => {
+    if (i % 5 === 0) {
+      const weekNum = Math.floor(i / 5) + 1;
+      html += `<tr><td colspan="9" style="background:var(--surface2); color:var(--text); font-weight:600; text-transform:uppercase; letter-spacing:1px; font-size:0.75rem; padding:8px 14px; text-align:left; border-bottom:1px solid var(--border);">Week ${weekNum}</td></tr>`;
+    }
+    html += `
     <tr>
       <td class="td-time">${i+1}</td>
       <td class="td-date">${escHtml(fmtDate(e.date))}</td>
@@ -1367,7 +1373,9 @@ function renderTable() {
         </div>
       </td>
     </tr>
-  `).join('');
+    `;
+  });
+  tbody.innerHTML = html;
 }
 
 function renderProgress() {
