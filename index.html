@@ -9,23 +9,41 @@
 
 <style>
   :root {
-    --bg: #030014;
+    /* Base Colors - Adapted for both modes */
+    --bg-color: #030014;
+    --text-primary: #f5f5f7;
+    --text-muted: #86868b;
+    
+    /* Glass Tokens */
     --glass-bg: rgba(255, 255, 255, 0.03);
     --glass-border: rgba(255, 255, 255, 0.1);
     --surface: rgba(255, 255, 255, 0.02);
-    --surface2: rgba(255, 255, 255, 0.05);
-    --border: rgba(255, 255, 255, 0.08);
-    --accent: #0071e3; /* Apple Blue */
-    --accent-glow: rgba(0, 113, 227, 0.2);
-    --accent2: #30d158; /* Apple Green */
-    --accent3: #ff453a; /* Apple Red */
-    --warn: #ffd60a; /* Apple Yellow */
-    --text: #f5f5f7;
-    --muted: #86868b;
+    --surface-hover: rgba(255, 255, 255, 0.05);
+    
+    /* Branding */
+    --accent: #0071e3;
+    --accent-glow: rgba(0, 113, 227, 0.3);
+    --success: #30d158;
+    --error: #ff453a;
+    --warning: #ffd60a;
+    
+    /* Spacing & Radii */
     --radius: 28px;
-    --radius-sm: 16px;
-    --total: 480;
-    --blur: 40px; /* Higher blur for more premium glass */
+    --radius-sm: 14px;
+    --blur: 40px;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg-color: #f5f5f7;
+      --text-primary: #1d1d1f;
+      --text-muted: #86868b;
+      --glass-bg: rgba(255, 255, 255, 0.7);
+      --glass-border: rgba(0, 0, 0, 0.05);
+      --surface: rgba(0, 0, 0, 0.02);
+      --surface-hover: rgba(0, 0, 0, 0.04);
+      --accent-glow: rgba(0, 113, 227, 0.15);
+    }
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,8 +52,8 @@
   body {
     position: relative;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    background: var(--bg-color);
+    color: var(--text-primary);
     min-height: 100vh;
     padding: 40px 20px 80px;
     overflow-x: hidden;
@@ -49,14 +67,17 @@
     inset: 0;
     z-index: -1;
     overflow: hidden;
-    background: #030014;
+    background: var(--bg-color);
   }
   .blob {
     position: absolute;
     border-radius: 50%;
     filter: blur(80px);
-    opacity: 0.5;
+    opacity: 0.4;
     animation: move 25s infinite alternate ease-in-out;
+  }
+  @media (prefers-color-scheme: light) {
+    .blob { opacity: 0.15; filter: blur(120px); }
   }
   .blob-1 {
     width: 600px; height: 600px;
@@ -101,7 +122,7 @@
     gap: 10px;
     font-size: 0.8rem;
     font-weight: 500;
-    color: var(--text);
+    color: var(--text-primary);
     user-select: none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
@@ -147,12 +168,12 @@
   .brand-text h1 {
     font-size: 1.8rem; font-weight: 700; letter-spacing: -1px;
   }
-  .brand-text p { font-size: 0.88rem; color: var(--muted); margin-top: 2px; font-weight: 400; }
+  .brand-text p { font-size: 0.88rem; color: var(--text-muted); margin-top: 2px; font-weight: 400; }
 
   .export-btn {
     display: flex; align-items: center; gap: 10px;
     background: var(--glass-bg);
-    color: var(--text);
+    color: var(--text-primary);
     border: 1px solid var(--glass-border);
     border-radius: 14px;
     padding: 12px 24px;
@@ -165,29 +186,30 @@
   }
   .export-btn:hover { background: rgba(255,255,255,0.08); transform: translateY(-3px); border-color: rgba(255,255,255,0.2); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
   .export-btn:active { transform: translateY(0); }
+  .header-actions {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; width: 100%; max-width: 480px;
+  }
+  .btn-secondary {
+    background: var(--surface) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--glass-border) !important;
+  }
+  .btn-accent {
+    background: rgba(142, 45, 226, 0.1) !important;
+    border-color: rgba(142, 45, 226, 0.2) !important;
+    color: #d8b4fe !important;
+  }
 
   /* ── PROGRESS SECTION ── */
-  .progress-section {
-    max-width: 1000px;
-    margin: 0 auto 32px;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius);
-    padding: 48px;
-    position: relative;
-    z-index: 2;
-    backdrop-filter: blur(var(--blur));
-    -webkit-backdrop-filter: blur(var(--blur));
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-  }
+
   .progress-top {
     display: flex; justify-content: space-between; align-items: flex-end;
     margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
   }
-  .progress-label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+  .progress-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
   .progress-nums { font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace; }
-  .progress-nums .done { font-size: 2.5rem; font-weight: 700; color: var(--text); }
-  .progress-nums .total { font-size: 1.2rem; color: var(--muted); }
+  .progress-nums .done { font-size: 2.5rem; font-weight: 700; color: var(--text-primary); }
+  .progress-nums .total { font-size: 1.2rem; color: var(--text-muted); }
   .progress-pct { font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace; font-size: 1.1rem; color: var(--accent); font-weight: 700; }
 
   .progress-bar-wrap {
@@ -202,7 +224,7 @@
     height: 100%;
     border-radius: 99px;
     background: linear-gradient(90deg, var(--accent), #5e17eb);
-    transition: width 1s cubic-bezier(.34,1.56,.64,1);
+    transition: width 0.4s cubic-bezier(.34,1.56,.64,1);
     min-width: 10px;
     box-shadow: 0 0 15px var(--accent-glow);
   }
@@ -223,24 +245,12 @@
   .stat-box .stat-val {
     font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace;
     font-size: 1.5rem; font-weight: 700;
-    color: var(--text);
+    color: var(--text-primary);
   }
-  .stat-box .stat-lbl { font-size: 0.8rem; color: var(--muted); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-box .stat-lbl { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
 
   /* ── FORM CARD ── */
-  .form-card {
-    max-width: 1000px;
-    margin: 0 auto 32px;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius);
-    padding: 48px;
-    position: relative;
-    z-index: 2;
-    backdrop-filter: blur(var(--blur));
-    -webkit-backdrop-filter: blur(var(--blur));
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-  }
+
   .form-card h2 {
     font-size: 1.25rem; font-weight: 600; margin-bottom: 28px;
     display: flex; align-items: center; gap: 12px;
@@ -256,19 +266,24 @@
   }
 
   .field { display: flex; flex-direction: column; gap: 8px; }
-  .field label { font-size: 0.7rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+  .field label { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
   .field input, .field textarea, .field select {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface);
     border: 1px solid var(--glass-border);
-    border-radius: 16px;
-    color: var(--text);
-    font-family: 'Sora', sans-serif;
-    font-size: 0.95rem;
-    padding: 14px 18px;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 14px 20px;
     outline: none;
-    transition: all .3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     width: 100%;
     min-height: 56px;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    background: var(--glass-bg);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-glow);
   }
   .field textarea { resize: vertical; min-height: 120px; border-radius: 20px; }
   .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); background: rgba(255,255,255,0.08); box-shadow: 0 0 0 4px var(--accent-glow); }
@@ -283,11 +298,13 @@
     padding: 12px 18px;
     font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace;
     font-size: 1rem;
-    color: var(--accent2);
+    color: var(--success);
     font-weight: 700;
   }
 
   .add-btn {
+    width: 100%;
+    justify-content: center;
     display: flex; align-items: center; gap: 12px;
     background: var(--accent);
     color: #fff;
@@ -306,7 +323,7 @@
   .ghost-btn {
     display: inline-flex; align-items: center; gap: 10px;
     background: transparent;
-    color: var(--muted);
+    color: var(--text-muted);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     padding: 14px 24px;
@@ -315,12 +332,12 @@
     cursor: pointer;
     transition: all .3s;
   }
-  .ghost-btn:hover { border-color: var(--text); color: var(--text); background: rgba(255,255,255,0.05); }
+  .ghost-btn:hover { border-color: var(--text-primary); color: var(--text-primary); background: rgba(255,255,255,0.05); }
 
   .mini-btn {
     display: inline-flex; align-items: center; gap: 8px;
     background: rgba(255,255,255,0.05);
-    color: var(--text);
+    color: var(--text-primary);
     border: 1px solid var(--glass-border);
     border-radius: 10px;
     padding: 8px 14px;
@@ -332,18 +349,22 @@
   .mini-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   /* ── LOG TABLE ── */
-  .log-section {
+  .progress-section, .form-card, .log-section {
     max-width: 1000px;
-    margin: 0 auto;
+    margin: 0 auto 32px;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius);
-    overflow: hidden;
+    padding: 48px;
     position: relative;
     z-index: 2;
     backdrop-filter: blur(var(--blur));
     -webkit-backdrop-filter: blur(var(--blur));
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    transition: transform 0.3s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.3s ease;
+  }
+  .progress-section:hover, .form-card:hover, .log-section:hover {
+    box-shadow: 0 30px 60px rgba(0,0,0,0.25);
   }
   .log-header {
     padding: 24px 32px;
@@ -357,7 +378,7 @@
     border: 1px solid var(--glass-border);
     border-radius: 99px;
     padding: 4px 16px;
-    font-size: 0.8rem; color: var(--muted);
+    font-size: 0.8rem; color: var(--text-muted);
     font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace;
     font-weight: 600;
   }
@@ -365,7 +386,7 @@
   table { width: 100%; border-collapse: collapse; }
   thead th {
     background: rgba(255,255,255,0.02);
-    color: var(--muted);
+    color: var(--text-muted);
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 1.5px;
@@ -378,7 +399,7 @@
   tbody tr:hover { background: rgba(255,255,255,0.03); }
   tbody td { padding: 20px 24px; vertical-align: middle; }
   
-  .td-hours { font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace; font-weight: 700; color: var(--accent2); font-size: 1rem; }
+  .td-hours { font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace; font-weight: 700; color: var(--success); font-size: 1rem; }
 
   /* ── TOAST ── */
   .toast {
@@ -473,16 +494,16 @@
       <p>480-hour requirement monitor</p>
     </div>
   </div>
-  <div class="header-actions" style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; width:100%; max-width:380px;">
-    <button class="export-btn" style="flex:1; min-width:140px;" onclick="exportToExcel()">
+  <div class="header-actions">
+    <button class="export-btn" style="flex:1;" onclick="exportToExcel()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Export to Excel
     </button>
-    <button class="export-btn" style="flex:1; min-width:140px; background:#263040; color:var(--text); border-color:var(--border);" onclick="downloadBackup()">
+    <button class="export-btn btn-secondary" style="flex:1;" onclick="downloadBackup()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7 7 7-7"/><path d="M5 19h14"/></svg>
       Backup JSON
     </button>
-    <button class="export-btn" style="flex:1; min-width:140px; background:#2c1f35; color:var(--text); border-color:#3a2945;" onclick="triggerImport()">
+    <button class="export-btn btn-accent" style="flex:1;" onclick="triggerImport()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/><path d="M5 19h14"/></svg>
       Restore
     </button>
