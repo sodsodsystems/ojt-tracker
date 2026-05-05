@@ -32,9 +32,9 @@
 
     /* STATUS COLORS */
     --status-present: #007AFF;
-    --status-half-am: #AEC6CF;
-    --status-half-pm: #B39EB5;
-    --status-absent: #FFB6C1;
+    --status-half-am: #32ADE6; /* Cyan */
+    --status-half-pm: #AF52DE; /* Violet */
+    --status-absent: #FF2D55;  /* Bright Pink */
   }
 
   @media (prefers-color-scheme: light) {
@@ -95,15 +95,22 @@
   
   .header-actions { display: flex; gap: 8px; }
   .btn {
-    padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border);
-    background: var(--card); color: var(--text); font-size: 0.8rem; font-weight: 500;
+    padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.05); color: var(--text); font-size: 0.8rem; font-weight: 500;
     cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
     display: flex; align-items: center; gap: 8px;
     backdrop-filter: blur(10px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   }
-  .btn:hover { background: var(--border); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); transform: translateY(-1px); }
   .btn:active { transform: translateY(0); }
+
+  /* Action Buttons in Table */
+  .btn-action {
+    padding: 6px; min-width: 34px; height: 34px; border-radius: 10px; justify-content: center;
+    background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+  }
+  .btn-action:hover { background: var(--gradient-base); border-color: transparent; color: #fff; }
+  .btn-action.btn-delete:hover { background: var(--status-absent); border-color: transparent; }
   
   .btn-primary { 
     background: var(--gradient-base); 
@@ -111,6 +118,7 @@
     border: none;
     position: relative;
     overflow: hidden;
+    padding: 10px 20px;
   }
   .btn-primary::before {
     content: '';
@@ -1123,18 +1131,21 @@ function renderTable() {
     const morRange = (e.status === 'absent' || e.status === 'halfday-pm') ? '—' : `${fmt12(e.morIn)} – ${fmt12(e.morOut)}`;
     const aftRange = (e.status === 'absent' || e.status === 'halfday-am') ? '—' : `${fmt12(e.aftIn)} – ${fmt12(e.aftOut)}`;
     
+    const totalColor = e.status === 'absent' ? 'var(--status-absent)' : 'var(--success)';
+    const totalText = e.status === 'absent' ? 'ABSENT' : (+e.hours).toFixed(2);
+
     html += `
     <tr>
-      <td>${i+1}</td>
-      <td style="font-weight:500;">${fmtDate(e.date)}</td>
-      <td><span style="font-size:0.75rem; color:var(--muted)">${statusLabel[e.status || 'present']}</span></td>
-      <td style="font-family:var(--font-mono); font-size:0.75rem;">${morRange}</td>
-      <td style="font-family:var(--font-mono); font-size:0.75rem;">${aftRange}</td>
-      <td style="font-family:var(--font-mono); font-weight:700; color:var(--success);">${(+e.hours).toFixed(2)}</td>
+      <td style="color:var(--muted); font-size:0.7rem;">${String(i+1).padStart(2, '0')}</td>
+      <td style="font-weight:600;">${fmtDate(e.date)}</td>
+      <td>${statusLabel[e.status || 'present']}</td>
+      <td style="font-family:var(--font-mono); font-size:0.75rem; color:var(--muted)">${morRange}</td>
+      <td style="font-family:var(--font-mono); font-size:0.75rem; color:var(--muted)">${aftRange}</td>
+      <td style="font-family:var(--font-mono); font-weight:700; color:${totalColor};">${totalText}</td>
       <td>
         <div style="display:flex; gap:8px;">
-          <button class="btn" style="padding:4px; min-width:32px;" onclick="startEdit(${e.id})" title="Edit">${iconHtml('pencil','icon-sm')}</button>
-          <button class="btn" style="padding:4px; min-width:32px; color:var(--error); border-color:rgba(255,69,58,0.2);" onclick="deleteEntry(${e.id})" title="Delete">${iconHtml('trash','icon-sm')}</button>
+          <button class="btn btn-action" onclick="startEdit(${e.id})" title="Edit">${iconHtml('pencil','icon-sm')}</button>
+          <button class="btn btn-action btn-delete" onclick="deleteEntry(${e.id})" title="Delete">${iconHtml('trash','icon-sm')}</button>
         </div>
       </td>
     </tr>
