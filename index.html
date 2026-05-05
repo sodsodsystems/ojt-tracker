@@ -226,7 +226,12 @@
   }
   input:focus, select:focus { border-color: var(--accent); }
 
-  .session-box { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .session-box { 
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; 
+    transition: all 0.3s ease;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   .session-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .session-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
   .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -407,6 +412,11 @@
           </div>
           <input type="hidden" id="statusField" value="present" />
         </div>
+      </div>
+
+      <div id="absentNote" style="display:none; padding:20px; text-align:center; color:var(--muted); font-size:0.85rem; border:1px dashed var(--border); border-radius:12px; margin-bottom:16px; flex-direction:column; gap:8px;">
+        <svg class="icon icon-lg" style="margin:0 auto; color:var(--status-absent)"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>No time entries required for Absent status.</span>
       </div>
 
       <div id="timeFields">
